@@ -7,7 +7,9 @@ The team members are: Anisha Suresh Mole, Cyrena Burke and Hayeon Son.
 Thank you.
 
 ******************************
-The specs of News API can be found here: https://newsapi.org/docs/endpoints/everything 
+The specs of News API can be found here: 
+https://newsapi.org/docs/endpoints/everything 
+https://github.com/mattlisiv/newsapi-python
 ******************************
 To activate virtual environment, please see below.
 
