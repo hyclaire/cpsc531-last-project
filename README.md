@@ -5,3 +5,8 @@ Our project is about 'Real Time News Recommendation system' and it was built wit
 The team members are: Anisha Suresh Mole, Cyrena Burke and Hayeon Son.
 
 Thank you.
+
+To activate virtual environment, please see below.
+
+![Screenshot 2024-11-17 at 19 45 28](https://github.com/user-attachments/assets/019e2847-0594-4531-b86f-184ec3515227)
+![Screenshot 2024-11-17 at 19 45 38](https://github.com/user-attachments/assets/45dddc0a-d6c9-448a-86dc-de4802d7f1f9)
