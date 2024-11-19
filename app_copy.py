@@ -1,10 +1,11 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template,  redirect, url_for, render_template
 from pymongo import MongoClient
 import requests
 from bs4 import BeautifulSoup
 
 # Flask app setup
 app = Flask(__name__)
+
 
 # MongoDB Atlas Configuration
 #MONGO_URI = "mongodb+srv://cyrenaburke:ygxYNsTwdrbTAXGC@cluster0.sgudd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
@@ -15,20 +16,25 @@ collection = db.articles  # Collection name
 
 # NewsAPI Configuration
 NEWS_API_KEY = "f3a094f995904af195df8a9c9e45406e"  # Replace with your API key
-NEWS_API_URL = "https://newsapi.org/v2/everything"
+NEWS_API_URL = "https://newsapi.org/v2/everything/"
 
 SCRAPE_URL = "https://www.bbc.com/news"  # Example news website to scrape
 
 @app.route('/collect', methods=['GET'])
 def collect_articles():
     # Get the query parameter from the request (default: 'technology')
-    query = request.args.get('query')
+    query = request.args.get('query', 'business')
+
+    if not query:
+        return jsonify({'error': 'The "query" parameter is required.'}), 400
+    
     print(f"Fetching articles for query: {query}")
+
 
     # Request parameters for NewsAPI
     params = {
         'q': query,
-        'apiKey': NEWS_API_KEY,
+        'apiKey': NEWS_API_KEY,    
         'pageSize': 5,
         'sortBy': 'publishedAt'
     }
@@ -119,19 +125,6 @@ def news():
         })
     return render_template('news.html', articles=articles_list)
 
-@app.route('/')
-def index():
-    username = request.cookies.get('username')
-    if username:
-        return "Home page is working"
-    else:
-        return redirect(url_for('profile'))
-    if request.method == 'POST':
-        username = request.form['username']
-        if'_' not in username:
-            return "Not a Valid Username"
-    resp = make_response(redirect(url_for('profile')))
-    resp
     import argparse
     import gym
     import numpy as np
