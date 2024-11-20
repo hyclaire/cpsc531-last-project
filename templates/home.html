@@ -1,16 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-</head>
+{% block title %}Home{% endblock %}
 
-<body>
-    <h1>Welcome, {{ username }}!</h1>
-    <p>You have logged in successfully.</p>
-    <p><a href="{{ url_for('profile') }}">Go to Profile</a></p>
-</body>
+{% block content %}
+<div class="text-center">
+    <h1>Welcome Back, {{ username }}!</h1>
+</div>
 
-</html>
+<!-- News Feed Section -->
+<div class="container mt-5">
+    <h2 class="mb-4">Latest News</h2>
+    <div class="row">
+        {% for article in articles %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <img src="{{ article['urlToImage'] or url_for('static', filename='images/placeholder.png') }}"
+                    class="card-img-top" alt="News Image">
+                <div class="card-body">
+                    <h5 class="card-title">{{ article['title'] }}</h5>
+                    <p class="card-text">{{ article['description'] }}</p>
+                    <button class="btn btn-primary"
+                        onclick="trackClick('{{ article['title']|e }}', '{{ article['url']|e }}')">Read More</button>
+                </div>
+            </div>
+        </div>
+
+        {% endfor %}
+    </div>
+</div>
+
+<h2>Top News Articles</h2>
+<ul>
+    {% for article in articles %}
+    <li>
+        <a href="{{ article['url'] }}" target="_blank">{{ article['title'] }}</a><br>
+        <small>{{ article['description'] }}</small>
+    </li>
+    {% endfor %}
+</ul>
+
+<h2>Recommended Articles for You</h2>
+<ul>
+    {% for recommendation in recommendations %}
+    <li>
+        <a href="{{ recommendation[0]['url'] }}" target="_blank">{{ recommendation[0]['title'] }}</a><br>
+        <small>{{ recommendation[0]['description'] }}</small>
+    </li>
+    {% endfor %}
+</ul>
+
+<script>
+    function trackClick(title, url) {
+        // Send a POST request to the track_click endpoint
+        fetch('/track_click', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ title: title, url: url })
+        }).then(response => {
+            if (response.ok) {
+                // Redirect to the article URL after tracking
+                window.location.href = url;
+            } else {
+                console.error('Error tracking click:', response);
+            }
+        });
+    }
+</script>
+{% endblock %}
