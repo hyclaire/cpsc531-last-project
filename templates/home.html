@@ -21,33 +21,29 @@
                     <p class="card-text">{{ article['description'] }}</p>
                     <button class="btn btn-primary"
                         onclick="trackClick('{{ article['title']|e }}', '{{ article['url']|e }}')">Read More</button>
+
+                    <!-- Like Button -->
+                    <form method="POST" action="{{ url_for('like_article', article_id=article['_id']) }}">
+                        <button type="submit" class="btn btn-success mt-2">Like</button>
+                    </form>
+
+                    <!-- Display Like Count -->
+                    <p class="mt-2">Likes: {{ article.get('like_count', 0) }}</p>
+
+                    <!-- Optionally, Display Liked Users -->
+                    {% if article.get('likes') %}
+                    <p>Liked by:
+                        {% for user in article['likes'] %}
+                        <span>{{ user }}</span>
+                        {% endfor %}
+                    </p>
+                    {% endif %}
                 </div>
             </div>
         </div>
-
         {% endfor %}
     </div>
 </div>
-
-<h2>Top News Articles</h2>
-<ul>
-    {% for article in articles %}
-    <li>
-        <a href="{{ article['url'] }}" target="_blank">{{ article['title'] }}</a><br>
-        <small>{{ article['description'] }}</small>
-    </li>
-    {% endfor %}
-</ul>
-
-<h2>Recommended Articles for You</h2>
-<ul>
-    {% for recommendation in recommendations %}
-    <li>
-        <a href="{{ recommendation[0]['url'] }}" target="_blank">{{ recommendation[0]['title'] }}</a><br>
-        <small>{{ recommendation[0]['description'] }}</small>
-    </li>
-    {% endfor %}
-</ul>
 
 <script>
     function trackClick(title, url) {
