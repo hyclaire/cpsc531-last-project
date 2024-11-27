@@ -1,0 +1,73 @@
+/* Custom styles for Landing Page */
+.content-section {
+    padding-top: 60px;
+    padding-bottom: 60px;
+}
+
+.company-info-section {
+    background-color: #f8f9fa;
+    /* Light background for this section */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.news-networks-section {
+    background-color: #e9ecef;
+}
+
+.mission-vision-section h3 {
+    font-size: 2rem;
+    color: #343a40;
+}
+
+.mission-vision-section p {
+    font-size: 1.1rem;
+    color: #6c757d;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+/* Smooth Hover Effects on Images */
+.img-fluid:hover {
+    transform: scale(1.05);
+    transition: transform 0.3s ease-in-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .company-info-section {
+        text-align: center;
+    }
+
+    .mission-vision-section h3 {
+        font-size: 1.5rem;
+    }
+
+    .mission-vision-section p {
+        font-size: 1rem;
+    }
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    /* Subtle hover effect */
+}
+
+h2:hover {
+    transform: scale(1.05);
+    transition: transform 0.3s ease-in-out;
+}
+
+.card {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+.card.visible {
+    opacity: 1;
+    transform: translateY(0);
+}

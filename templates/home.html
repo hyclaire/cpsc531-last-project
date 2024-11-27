@@ -1,67 +1,95 @@
 {% extends "base.html" %}
 
-{% block title %}Home{% endblock %}
+{% block title %}Home - LiveNewsFeed{% endblock %}
 
 {% block content %}
-<div class="text-center">
-    <h1>Welcome Back, {{ username }}!</h1>
-</div>
-
-<!-- News Feed Section -->
+<!-- Display a welcome message to the signed-in user -->
 <div class="container mt-5">
-    <h2 class="mb-4">Latest News</h2>
+    {% if 'username' in session %}
+    <h3 class="text-center" style="font-size: 2rem; color: #2c3892; font-family: 'Poppins', sans-serif;">
+        Welcome back, {{ session['username'] }}!
+    </h3>
+    {% endif %}
+
+    <!-- Top News Title -->
+    <h2 class="mb-4 text-center font-weight-bold display-1" style="font-family: 'Roboto', sans-serif; font-size: 4rem; font-weight: 700; 
+                   background: linear-gradient(to right, #2c3892, #2c3892); 
+                   -webkit-background-clip: text; 
+                   -moz-background-clip: text;
+                   background-clip: text; 
+                   color: transparent; 
+                   padding-top: 30px; 
+                   transition: all 0.3s ease-in-out;">
+        Top News
+    </h2>
+
+    {% if news %}
     <div class="row">
-        {% for article in articles %}
+        {% for article in news %}
         <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <img src="{{ article['urlToImage'] or url_for('static', filename='images/placeholder.png') }}"
-                    class="card-img-top" alt="News Image">
+            <div class="card shadow-lg border-light rounded" style="border-radius: 15px; overflow: hidden;">
+                <img src="{{ article.urlToImage }}" class="card-img-top" alt="{{ article.title }}"
+                    style="height: 200px; object-fit: cover;">
                 <div class="card-body">
-                    <h5 class="card-title">{{ article['title'] }}</h5>
-                    <p class="card-text">{{ article['description'] }}</p>
-                    <button class="btn btn-primary"
-                        onclick="trackClick('{{ article['title']|e }}', '{{ article['url']|e }}')">Read More</button>
+                    <h5 class="card-title font-weight-bold text-dark">{{ article.title }}</h5>
+
+                    <!-- Safe check for description -->
+                    <p class="card-text text-muted">
+                        {{ article.description[:150] if article.description else '' }}{% if article.description and
+                        article.description|length > 150 %}...{% endif %}
+                    </p>
 
                     <!-- Like Button -->
-                    <form method="POST" action="{{ url_for('like_article', article_id=article['_id']) }}">
-                        <button type="submit" class="btn btn-success mt-2">Like</button>
-                    </form>
+                    <button
+                        class="like-btn btn {% if article.liked_by_user %}btn-primary{% else %}btn-outline-primary{% endif %} w-100"
+                        data-article-id="{{ article._id }}" onclick="likeArticle(this)" {% if article.liked_by_user
+                        %}disabled{% endif %}>
+                        {% if article.liked_by_user %}Liked{% else %}Like{% endif %} <span class="like-count">{{
+                            article.likes }}</span>
+                    </button>
 
-                    <!-- Display Like Count -->
-                    <p class="mt-2">Likes: {{ article.get('like_count', 0) }}</p>
 
-                    <!-- Optionally, Display Liked Users -->
-                    {% if article.get('likes') %}
-                    <p>Liked by:
-                        {% for user in article['likes'] %}
-                        <span>{{ user }}</span>
-                        {% endfor %}
-                    </p>
-                    {% endif %}
+                    <a href="{{ article.url }}" target="_blank" class="btn btn-primary w-100 mt-2">Read More</a>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <p class="text-center text-muted">No news articles available at the moment.</p>
+    {% endif %}
 </div>
-
+<br><br><br>
 <script>
-    function trackClick(title, url) {
-        // Send a POST request to the track_click endpoint
-        fetch('/track_click', {
+    // Function to handle liking an article
+    function likeArticle(button) {
+        const articleId = button.getAttribute('data-article-id');
+
+        // Make an API request to like the article
+        fetch('/like-article', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ title: title, url: url })
-        }).then(response => {
-            if (response.ok) {
-                // Redirect to the article URL after tracking
-                window.location.href = url;
-            } else {
-                console.error('Error tracking click:', response);
-            }
-        });
+            body: JSON.stringify({ article_id: articleId })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.likes !== undefined) {
+                    // Update the like count and disable the button
+                    const likeCountSpan = button.querySelector('.like-count');
+                    likeCountSpan.textContent = data.likes;
+                    button.textContent = 'Liked'; // Update button text
+                    button.classList.remove('btn-outline-primary');
+                    button.classList.add('btn-primary');
+                    button.disabled = true; // Disable button
+                } else {
+                    alert(data.error || 'Error liking the article.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
     }
 </script>
 {% endblock %}

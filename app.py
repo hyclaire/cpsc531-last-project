@@ -9,14 +9,28 @@ from sklearn.metrics.pairwise import cosine_similarity
 from bson.objectid import ObjectId
 from user_agents import parse
 import ipinfo
+from bson import ObjectId
+from keybert import KeyBERT
+import urllib
+
 
 app = Flask(__name__)
+
 app.secret_key = 'your_secret_key'  # Replace with a secure key
-NEWS_API_KEY = "f3a094f995904af195df8a9c9e45406e"
+
+# NewsAPI Key
+#NEWS_API_KEY = 'f3a094f995904af195df8a9c9e45406e'
+NEWS_API_KEY = '97a585ab11d1437ea7a196a5feb55681'
+NEWS_API_URL = 'https://newsapi.org/v2/top-headlines'
 
 #ipinfo token
 ipinfo_token = 'eea13e49f85493'
 ipinfo_handler = ipinfo.getHandler(ipinfo_token)
+
+# MongoDB Atlas connection like button
+client = MongoClient("mongodb+srv://cyrenaburke:ygxYNsTwdrbTAXGC@cluster0.sgudd.mongodb.net/dbname?tls=true&tlsAllowInvalidCertificates=true")
+db = client.dbname  # 'dbname' is your database name
+articles_collection = db.articles  # 'articles' is your collection name
 
 # MongoDB Configuration
 app.config["MONGO_URI"] = "mongodb+srv://cyrenaburke:ygxYNsTwdrbTAXGC@cluster0.sgudd.mongodb.net/dbname?tls=true&tlsAllowInvalidCertificates=true"
@@ -28,6 +42,18 @@ client = MongoClient("mongodb+srv://cyrenaburke:ygxYNsTwdrbTAXGC@cluster0.sgudd.
 db = client['user_behavior']
 clicks_collection = db['clicks']
 context_collection = db['context']
+
+@app.route('/keybert', methods=['POST'])
+def keybert():
+    #for testing semantic keyword extraction
+    # Initialize KeyBERT
+    kw_model = KeyBERT()
+
+# Test
+    keywords = kw_model.extract_keywords("This is a test description for keyword extraction.")
+    #print(keywords)
+    flash(keywords, "danger")
+    return {"status": "success"}, 200
 
 @app.route('/contextual_data', methods=['POST'])
 def contextual_data():
@@ -128,58 +154,16 @@ def logout():
     flash("You have been logged out.", "success")
     return redirect(url_for('login'))
 
-@app.route('/like_article/<article_id>', methods=['POST'])
-def like_article(article_id):
-    username = session.get('username')
-    if not username:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    # Fetch the article from MongoDB
-    article = mongo.db.articles.find_one({"_id": ObjectId(article_id)})
-
-    if article:
-        # Update or initialize likes
-        if 'likes' not in article or username not in article['likes']:
-            mongo.db.articles.update_one(
-                {"_id": ObjectId(article_id)},
-                {"$push": {"likes": username}, "$inc": {"like_count": 1}},
-                upsert=True
-            )
-    else:
-        # Insert new article with initial like count
-        mongo.db.articles.insert_one({
-            "_id": ObjectId(article_id),
-            "likes": [username],
-            "like_count": 1,
-            "created_at": datetime.utcnow()
-        })
-
-    return redirect(url_for('home'))
-
+# Route: Home page (protected)
 @app.route('/home')
 def home():
     if 'username' in session:
-        # Track contextual data when accessing the home page
-        contextual_data()
-
-    # Fetch news articles from News API
-    url = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={NEWS_API_KEY}"
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        articles = response.json().get('articles', [])
-        for article in articles:
-            article['_id'] = str(ObjectId())
+        username = session['username']
+        # Fetch user's news from MongoDB
+        news = fetch_news(username)  # Pass username to fetch user-specific info
+        return render_template('home.html', username=username, news=news)
     else:
-        articles = []
-
-    return render_template(
-        'home.html',
-        username=session.get('username'),
-        articles=articles
-    )
-
-
+        return redirect(url_for('login'))  # Redirect to login if not authenticated
 
 @app.route('/track_click', methods=['POST'])
 def track_click():
@@ -195,18 +179,89 @@ def track_click():
     clicks_collection.insert_one(click_event)
     return {"status": "success"}, 200
 
-def content_based_recommendations(articles):
-    descriptions = [article.get('description', '') for article in articles]
-    tfidf = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = tfidf.fit_transform(descriptions)
-    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+# Route to handle liking an article
+@app.route('/like-article', methods=['POST'])
+def like_article():
+    if 'username' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401  # User must be logged in
 
-    recommendations = {}
-    for idx, article in enumerate(articles):
-        sim_scores = list(enumerate(cosine_sim[idx]))
-        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-        recommendations[article['title']] = [articles[i[0]]['title'] for i in sim_scores[1:4]]
-    return recommendations
+    data = request.get_json()
+    article_id = data['article_id']  # Get the article ID from the request
+    username = session['username']  # Get the logged-in username
+
+    # Find the article in the MongoDB collection by its ObjectId
+    article = articles_collection.find_one({'_id': ObjectId(article_id)})
+
+    if article:
+        # Check if the user already liked the article
+        if username in article.get('liked_by', []):
+            return jsonify({'error': 'Already liked'}), 400  # User already liked the article
+
+        # Increment the like count and add the user to the liked_by list
+        articles_collection.update_one(
+            {'_id': ObjectId(article_id)},
+            {
+                '$inc': {'likes': 1},  # Increment the like count
+                '$addToSet': {'liked_by': username}  # Add user to liked_by list
+            }
+        )
+
+        # Return the updated like count as JSON
+        updated_article = articles_collection.find_one({'_id': ObjectId(article_id)})
+        return jsonify({'likes': updated_article['likes']})
+    
+    return jsonify({'error': 'Article not found'}), 404
+
+# Function to fetch news from NewsAPI and store in MongoDB if not already stored
+def fetch_news(username=None):
+    
+    # Fetch all articles from MongoDB
+    articles = list(mongo.db.articles.find())
+
+    # Add liked_by_user field for each article
+    for article in articles:
+        article['_id'] = str(article['_id'])  # Convert ObjectId to string for frontend
+        article['liked_by_user'] = username in article.get('liked_by', [])
+
+    #return articles
+    # Check if news is already stored in the database
+    existing_articles = list(mongo.db.articles.find())  # Fetch articles from MongoDB
+
+    if not existing_articles:  # If no news articles are found, fetch from API
+        # Define parameters for NewsAPI request
+
+        #testing for query
+        query = 'korea'
+        #encoded_query = urllib.parse.quote(query)
+        params = {
+            'q': query,
+            'apiKey': NEWS_API_KEY,
+            'language': 'en',  # Change to the country code you want
+            'pageSize': 7,  # Fetch top 5 articles
+        }
+
+        # Fetch news from NewsAPI
+        response = requests.get(NEWS_API_URL, params=params)
+
+        if response.status_code == 200:
+            articles = response.json().get('articles', [])
+
+            # Store articles in MongoDB if not already stored
+            for article in articles:
+                mongo.db.articles.update_one(
+                    {'url': article['url']},  # Use URL as a unique identifier
+                    {'$set': article},  # Update or insert the article
+                    upsert=True  # Insert the article if it doesn't already exist
+                )
+        else:
+            print(f"Error fetching news from NewsAPI: {response.status_code}")
+            return []  # Return an empty list if API fetch fails
+
+        # Return articles from the database
+        return list(mongo.db.articles.find())
+
+    # If articles already exist, return them from the database
+    return existing_articles
 
 if __name__ == '__main__':
     app.run(debug=True)
